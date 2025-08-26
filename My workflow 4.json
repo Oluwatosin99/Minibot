@@ -1,0 +1,262 @@
+{
+  "name": "My workflow 4",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "274d4c93-a8b7-4a60-acd7-0302073e3bf3",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        64
+      ],
+      "id": "e2a14197-7e25-4422-8b75-5cf34ca09153",
+      "name": "Webhook",
+      "webhookId": "274d4c93-a8b7-4a60-acd7-0302073e3bf3"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/files/Knowledge Base for SAP Chatbot.pdf",
+        "options": {
+          "dataPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        160,
+        64
+      ],
+      "id": "a209b8d8-b51f-43a9-8688-aed2330dd74e",
+      "name": "Read/Write Files from Disk",
+      "alwaysOutputData": false,
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "enableResponseOutput": true,
+        "respondWith": "json",
+        "responseBody": "={\n  \"answer\": \"{{ $json.answer }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1952,
+        64
+      ],
+      "id": "19fbc8e8-c1de-44bf-bf48-be18d1e9dbe5",
+      "name": "Respond to Webhook",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        384,
+        64
+      ],
+      "id": "c97fcaa9-f97b-4062-a60b-53ce3c874c00",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the first item (best match)\nconst data = $input.first().json.data[0];\n\n// Turn into a single string response\nconst response = `\nQuestion: ${data.question || \"\"}\nAnswer: ${data.answer || \"\"}\nDescription: ${data.description || \"\"}\n`;\n\n// Return as JSON so Webhook Response can use {{ $json }}\nreturn [\n  {\n    json: {\n      response: response.trim()\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        64
+      ],
+      "id": "1e653f6a-bbfc-467d-8506-c4dc8edbbe29",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1056,
+        64
+      ],
+      "id": "dd0fce52-89a5-4290-afa8-8d90c31e48cc",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Take the text safely\nconst rawText = $input.first().json.response || \"\";\n\n// Clean up carriage returns, keep newlines intact\nconst safeText = rawText.toString().replace(/\\r/g, \"\");\n\n// Return as plain string (JSON safe)\nreturn {\n  json: {\n    answer: safeText\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        64
+      ],
+      "id": "489923a0-4d20-4610-99e2-aa39675f6f40",
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rawText = $input.first().json.answer || \"\";\n\n// Escape for JSON safety (\\\\n not raw \\n)\nconst safeText = rawText\n  .toString()\n  .replace(/\\r/g, \"\")\n  .replace(/\\n/g, \"\\\\n\");  // keep newlines escaped for JSON\n\nreturn {\n  json: {\n    answer: safeText\n  }\n};\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1728,
+        64
+      ],
+      "id": "10fdf5f5-7d97-4bb0-a3ee-eb748727e2b2",
+      "name": "Code4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input: items[0].json.text (your extracted PDF text)\n// Output: array of chunks, one per Question block\nconst text = $input.first().json.text;\n\n// Split the PDF text by \"Question:\"\nconst rawChunks = text.split(/Question:/).map(t => t.trim()).filter(Boolean);\n\n// Transform into structured Q&A objects\nconst chunks = rawChunks.map(chunk => {\n  // Get the first line as the question\n  const questionMatch = chunk.match(/^(.*?)\\n/);\n  const question = questionMatch ? questionMatch[1].trim() : \"\";\n\n  // Get the answer line\n  const answerMatch = chunk.match(/Answer:\\s*(.*?)\\n/);\n  const answer = answerMatch ? answerMatch[1].trim() : \"\";\n\n  // Everything after \"Answer:\" = description\n  let description = \"\";\n  if (answerMatch) {\n    description = chunk.slice(answerMatch.index + answerMatch[0].length).trim();\n  }\n\n  return {\n    data: {\n      question,\n      answer,\n      description\n    }\n  };\n});\n\n// Return each Q&A as its own item\nreturn chunks;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        64
+      ],
+      "id": "16fb27cd-9a4e-4146-8ded-5affcf60115a",
+      "name": "7 chunks"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1) Get user question from webhook\nconst userQuestion = $('Webhook').first().json.body.question;\n\n// 2) Similarity with safeguards\nfunction similarity(a, b) {\n  if (typeof a !== 'string' || typeof b !== 'string') return 0;\n  a = a.toLowerCase();\n  b = b.toLowerCase();\n  if (a === b) return 1;\n  if (a.includes(b) || b.includes(a)) return 0.9;\n\n  // Jaccard fallback\n  const setA = new Set(a.split(/\\s+/).filter(Boolean));\n  const setB = new Set(b.split(/\\s+/).filter(Boolean));\n  const intersection = new Set([...setA].filter(x => setB.has(x)));\n  return intersection.size / Math.max(setA.size, setB.size);\n}\n\n// 3) Helpers to read fields regardless of nesting\nfunction pickQuestion(it) {\n  return it?.question\n      ?? it?.data?.question\n      ?? it?.json?.question\n      ?? it?.json?.data?.question\n      ?? it?.text\n      ?? it?.json?.text\n      ?? null;\n}\n\nfunction unwrapQA(it) {\n  return {\n    question:\n      it?.question ?? it?.data?.question ?? it?.json?.question ?? it?.json?.data?.question ?? null,\n    answer:\n      it?.answer ?? it?.data?.answer ?? it?.json?.answer ?? it?.json?.data?.answer ?? null,\n    description:\n      it?.description ?? it?.data?.description ?? it?.json?.description ?? it?.json?.data?.description ?? null,\n  };\n}\n\n// 4) Find the best match across ALL incoming items (your 7 chunks)\nlet bestItem = null;\nlet bestScore = -1;\n\nfor (const item of $input.all()) {\n  const q = pickQuestion(item);\n  const score = similarity(userQuestion, q);\n  if (score > bestScore) {\n    bestScore = score;\n    bestItem = item;\n  }\n}\n\n// 5) Return ONLY the best chunk (unwrapped), plus the score\nif (bestItem) {\n  const qa = unwrapQA(bestItem);\n\n  // If your data is just a string chunk with no Q/A fields, fallback to returning the raw text\n  if (!qa.question && !qa.answer && !qa.description) {\n    return [{ json: { text: String(bestItem), matchScore: bestScore } }];\n  }\n\n  return [\n    {\n      json: {\n        question: qa.question,\n        answer: qa.answer,\n        description: qa.description,\n        matchScore: bestScore\n      }\n    }\n  ];\n}\n\nreturn [{ json: { error: 'No matching question found' } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        64
+      ],
+      "id": "35903c35-ea48-4430-8c83-ee82835cec6a",
+      "name": "Match Chunk with question"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "7 chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "Code4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code4": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7 chunks": {
+      "main": [
+        [
+          {
+            "node": "Match Chunk with question",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Chunk with question": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3546df67-b134-4028-8395-bc7d024abc7f",
+  "meta": {
+    "instanceId": "558d88703fb65b2d0e44613bc35916258b0f0bf983c5d4730c00c424b77ca36a"
+  },
+  "id": "8VtIlwohdTThFVaC",
+  "tags": []
+}
