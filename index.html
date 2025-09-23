@@ -19,6 +19,8 @@
             background-attachment: fixed;
             min-height: 100vh;
             position: relative;
+            width: 100%;
+            overflow-x: hidden;
         }
 
         body::before {
@@ -34,14 +36,15 @@
 
         /* Header Styles */
         .header {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(141, 6, 252, 0.39);
             backdrop-filter: blur(10px);
-            padding: 1rem 2rem;
+            padding: 0.15rem 2rem;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             position: sticky;
             top: 0;;
             z-index: 1000;
             margin-top: -22px;
+            height: 70px;
         }
 
         .nav-container {
@@ -57,7 +60,7 @@
             align-items: center;
             font-size: 2rem;
             font-weight: bold;
-            color: #0070f3;
+            color: #f8f9fa;
             text-decoration: none;
         }
 
@@ -79,7 +82,7 @@
 
         .nav-link {
             text-decoration: none;
-            color: #333;
+            color: #f7f2f2;
             font-weight: 500;
             padding: 0.5rem 1rem;
             border-radius: 4px;
@@ -170,7 +173,7 @@
             position: fixed;
             bottom: 2rem;
             right: 2rem;
-            width: 60px;
+            width: auto;
             height: 60px;
             background: #0070f3;
             border: none;
@@ -182,6 +185,11 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            gap: 0.5rem;
+            border-radius: 15px;
+            padding: 0.75rem 1.5rem;
+            color: white;
+            margin-right: 0rem;
         }
 
         .chat-button:hover {
@@ -270,6 +278,13 @@
             color: #333;
         }
 
+        .message img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px; /* optional, matches bubble shape */
+            display: block;
+        }
+
         .message.user {
             background: #0070f3;
             color: white;
@@ -314,6 +329,31 @@
             background: #0056b3;
         }
 
+        /* User messages inside .chatopen */
+        .user-timestamp {
+            display: block;
+            font-size: 0.7em;
+            color: #b3d4fc;
+            text-align: right;
+            margin-top: 4px;
+            margin-right: 10px;
+            position: relative;
+            bottom: 10px;
+            left: 10px;
+            font-style: italic;
+            margin-left: auto;
+        }
+
+        /* Bot messages inside .chatreply */
+        .bot-timestamp {
+            display: block;
+            font-size: 0.7em;
+            color: #777;
+            text-align: right;
+            margin-top: 4px;
+            font-style: italic;
+        }
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .nav-menu {
@@ -334,6 +374,17 @@
                 right: 1rem;
             }
         }
+
+        @media screen and (min-width: 1800px){
+            .chat-interface {
+                width: 500px;
+                height: 700px;
+            }
+
+            .main-content {
+                margin-top: 250px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -342,7 +393,7 @@
         <nav class="nav-container">
             <a href="#" class="logo">
                 <img src="/chatbot_logo-removebg-preview.png" alt="SAP Logo" style="font-size: 10px; width: 8%; height: 50%;">
-                SAP AI Assistant
+                SAP Assistant
             </a>
             
             <ul class="nav-menu">
@@ -401,6 +452,7 @@
         <svg class="chat-icon" viewBox="0 0 24 24">
             <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4 4-4h4c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
         </svg>
+        Chat with SAP Support
     </button>
 
      <!-- Chat Interface -->
@@ -463,18 +515,13 @@
         const chatSend = document.getElementById('chatSend');
         const chatMessages = document.getElementById('chatMessages');
 
-        // Sample responses for the chatbot
-        const botResponses = [
-            "I'd be happy to help you with that! Can you provide more details?",
-            "That's a great question! Let me connect you with the right information.",
-            "I understand your concern. Our team can assist you with SAP solutions.",
-            "Thank you for reaching out! How can I make your SAP experience better?",
-            "I'm here to help with any SAP-related questions you might have.",
-            "Let me help you find the right solution for your business needs.",
-            "That's an interesting point! Would you like to schedule a consultation?",
-            "I can help you explore our enterprise solutions. What's your main priority?"
-        ];
+        // Helper: current time
+        function getCurrentTime() {
+            const now = new Date();
+            return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
 
+        // Open / close chat
         function toggleChat() {
             chatInterface.classList.toggle('active');
             if (chatInterface.classList.contains('active')) {
@@ -486,25 +533,53 @@
             chatInterface.classList.remove('active');
         }
 
-        function addMessage(text, isUser = false) {
+        // Add user/bot messages
+        function addMessage(text, isUser = false, withTime = true) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
-            messageDiv.textContent = text;
+            messageDiv.innerHTML = `
+                <p>${text}</p>
+                ${withTime ? `<span class="timestamp">${getCurrentTime()}</span>` : ''}
+            `;
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        function sendMessage() {
+        // Show typing block
+        function addTypingBlock() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = "message bot typing";
+            typingDiv.innerHTML = `<p>Typing...</p>`;
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return typingDiv;
+        }
+
+        // Send message to server
+        async function sendMessage() {
             const message = chatInput.value.trim();
-            if (message) {
-                addMessage(message, true);
-                chatInput.value = '';
-                
-                // Simulate bot response after a short delay
-                setTimeout(() => {
-                    const randomResponse = botResponses[Math.floor(Math.random() * botResponses.length)];
-                    addMessage(randomResponse);
-                }, 1000);
+            if (!message) return;
+
+            addMessage(message, true);
+            chatInput.value = '';
+
+            const typingBlock = addTypingBlock();
+
+            try {
+                const res = await fetch('http://localhost:5678/webhook-test/274d4c93-a8b7-4a60-acd7-0302073e3bf3', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: message })
+                });
+
+                const data = await res.json();
+                typingBlock.remove();
+
+                addMessage((data.answer || "Sorry, I couldn't get an answer.").replace(/\n/g, "<br>"));
+            } catch (err) {
+                typingBlock.remove();
+                addMessage("Sorry, there was an error contacting the server.");
+                console.error(err);
             }
         }
 
@@ -515,6 +590,7 @@
 
         chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
+                e.preventDefault();
                 sendMessage();
             }
         });
@@ -525,6 +601,7 @@
                 closeChat();
             }
         });
+
     </script>
 </body>
 </html>
