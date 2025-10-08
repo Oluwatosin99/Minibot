@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dashboard</title>
+  <style>
+    :root{
+      --bg: #f6faf6;
+      --card: #ffffff;
+      --muted: #6b7280;
+      --green: #16a34a;
+      --green-600: #13803d;
+      --border: #e6f0ea;
+      --accent: rgba(22,163,74,0.08);
+      --radius: 12px;
+      --shadow: 0 6px 18px rgba(10,10,10,0.06);
+      --glass: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.4));
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:#111827;
+      -webkit-font-smoothing:antialiased;
+      display:flex;
+      align-items:stretch;
+      min-height:100vh;
+    }
+
+    /* Layout */
+    .app { display: grid; grid-template-columns: 80px 1fr; width:100%; gap:20px; padding:20px; align-items:stretch; }
+
+    /* Sidebar */
+    .sidebar {
+      background: var(--card); border-radius: var(--radius); padding: 14px 10px; box-shadow: var(--shadow);
+      display:flex; flex-direction:column; gap:10px; height: calc(100vh - 40px); overflow:visible;
+    }
+    .brand { display:flex; align-items:center; justify-content:center; height:48px; border-radius:10px; font-weight:700; color:var(--green-600); font-size:14px; }
+    .nav-icons{ display:flex; flex-direction:column; gap:8px; margin-top:8px; align-items:center; }
+    .nav-item { width:48px; height:48px; display:flex; align-items:center; justify-content:center; border-radius:10px; cursor:pointer; color:var(--muted); }
+    .nav-item.active{ background:var(--accent); color:var(--green-600); box-shadow: 0 4px 10px rgba(20,120,70,0.08); }
+    .nav-item svg{width:20px;height:20px}
+
+    /* Main area */
+    .main { display:flex; flex-direction:column; gap:16px; height: calc(100vh - 40px); }
+    .topbar { display:flex; gap:12px; align-items:center; background:var(--card); padding:14px; border-radius:var(--radius); box-shadow:var(--shadow); }
+    .search { display:flex; align-items:center; gap:8px; flex:1; border:1px solid var(--border); padding:8px 12px; border-radius:10px; background:linear-gradient(180deg,#fff,#fbfffb); }
+    .search input{ border:0; outline:0; font-size:14px; width:100%; background:transparent; }
+    .btn { padding:8px 12px; border-radius:10px; border:0; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:8px; }
+    .btn-green { background:var(--green); color:white; box-shadow: 0 6px 14px rgba(18,120,60,0.12); }
+    .btn-outline { background:transparent; border:1px solid var(--border); color:var(--muted); }
+
+    /* Content */
+    .content { background:var(--card); padding:14px; border-radius:var(--radius); box-shadow:var(--shadow); overflow:auto; flex:1; display:flex; flex-direction:column; }
+
+    /* Filters row */
+    .controls { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+    .pill { padding:6px 10px; border-radius:999px; border:1px solid var(--border); font-size:13px; cursor:pointer; background:transparent; }
+    .pill.active { background:var(--accent); color:var(--green-600); border-color: rgba(22,163,74,0.12); }
+
+    /* Table */
+    table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:14px; }
+    thead th { text-align:left; font-size:12px; color:var(--muted); padding:10px 8px; border-bottom:1px solid var(--border); white-space:nowrap; }
+    tbody td { padding:12px 8px; border-bottom:1px dashed #f0f6ef; vertical-align:middle; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .status { display:inline-block; padding:6px 8px; border-radius:999px; font-size:12px; font-weight:600; color:var(--green-600); background:rgba(22,163,74,0.08); }
+    .muted { color:var(--muted); font-size:13px; }
+
+    /* Impact badge */
+    .impact {
+      display:inline-block; min-width:64px; text-align:center; padding:6px 8px; border-radius:999px; font-weight:600; font-size:12px;
+    }
+    .impact.low { background: rgba(34,197,94,0.08); color: #059669; }
+    .impact.medium { background: rgba(132,204,22,0.08); color: #65a30d; }
+    .impact.high { background: rgba(16,185,129,0.12); color: #047857; }
+
+    /* Next target pill - progress */
+    .progress-pill { width:120px; height:22px; border-radius:999px; background:#f1f7f1; display:flex; align-items:center; padding:2px; border:1px solid var(--border); overflow:hidden; }
+    .progress-fill { height:100%; background: linear-gradient(90deg,var(--green), var(--green-600)); border-radius:999px; transition:width .3s ease; }
+    .progress-text { margin-left:8px; font-size:12px; color:var(--muted); min-width:36px; text-align:right; }
+
+    /* Modal */
+    .modal-backdrop { position:fixed; inset:0; background:rgba(10,10,10,0.35); display:flex; align-items:center; justify-content:center; z-index:40; }
+    .modal { width:520px; max-width:94%; background:var(--card); border-radius:12px; padding:18px; box-shadow:0 18px 40px rgba(0,0,0,0.12); }
+    .modal h3{margin:0 0 10px 0}
+    .row {display:flex; gap:10px;}
+    .col {flex:1}
+    .field { margin-bottom:10px; }
+    .field input, .field select { width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--border); font-size:14px; }
+    .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:6px; }
+
+    /* Mini chatbot */
+    .chat-bubble {
+      position:fixed; right:20px; bottom:20px; z-index:60; display:flex; flex-direction:column; align-items:flex-end;
+    }
+    .chat-toggle {
+      width:56px; height:56px; border-radius:50%; background:var(--green); display:flex; align-items:center; justify-content:center; color:white; cursor:pointer; box-shadow:0 8px 24px rgba(20,120,70,0.18);
+      font-weight:700;
+    }
+    .chat-window {
+      width:320px; max-width:92%; border-radius:12px; overflow:hidden; margin-bottom:10px; box-shadow:0 18px 40px rgba(0,0,0,0.18);
+      background:var(--card); display:flex; flex-direction:column;
+    }
+    .chat-header { padding:10px 12px; background:linear-gradient(90deg,var(--green),var(--green-600)); color:white; font-weight:700; }
+    .chat-messages { padding:10px; display:flex; flex-direction:column; gap:8px; max-height:280px; overflow:auto; background:linear-gradient(180deg,#fff,#fbfff7); }
+    .chat-input { display:flex; gap:8px; padding:10px; border-top:1px solid #f0f4ef; }
+    .chat-input input { flex:1; padding:8px 10px; border-radius:8px; border:1px solid var(--border); border-color: #047857;} 
+    #chatInput:focus { border-color: #047857; border-width: 2.5px; outline: none;} 
+    .message.bot { align-self:flex-start; background: #f2fff5; padding:8px 10px; border-radius:12px; max-width:85%; }
+    .message.user { align-self:flex-end; background: #e6ffe9; padding:8px 10px; border-radius:12px; max-width:85%; }
+    .bot-buttons { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+    .chat-option { padding:6px 8px; border-radius:8px; background:transparent; border:1px solid var(--border); cursor:pointer; font-weight:600; font-size:13px; }
+
+        /* Profile Circle */
+    .profile-container {
+      position: relative;
+      margin-top: 20px;
+      margin-left: 9px
+    }
+
+    .profile-circle {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #4caf50, #81c784);
+      color: white;
+      border-radius: 50%;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      transition: transform 0.2s;
+    }
+
+    .profile-circle:hover {
+      transform: scale(1.05);
+    }
+
+    /* Dropdown Menu */
+    .profile-menu {
+      position: absolute;
+      top: 50%;
+      left: 60px;
+      background: white;
+      border: 1px solid #c8e6c9;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      display: none;
+      flex-direction: column;
+      padding: 5px 0;
+      z-index: 9999;
+    }
+
+    .profile-menu::before {
+      content: "";
+      position: absolute;
+      left: -6px;
+      top: 50%;
+      transform: translateY(-50%) rotate(45deg);
+      width: 12px;
+      height: 12px;
+      background: #fff;
+      border-left: 1px solid #c8e6c9;
+      border-top: 1px solid #c8e6c9;
+    }
+
+    .profile-name {
+      font-weight: 600;
+      color: #2e7d32;
+      text-align: center;
+      padding: 5px 0;
+    }
+
+    .profile-menu hr {
+      border: none;
+      height: 1px;
+      background: #c8e6c9;
+      margin: 6px 0;
+    }
+
+    .profile-menu button {
+      background: none;
+      border: none;
+      padding: 8px 16px;
+      color: #2e7d32;
+      text-align: center;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    .profile-menu button:hover {
+      background-color: #c8e6c9;
+    }
+
+    @media (max-width:880px){
+      .app { grid-template-columns: 64px 1fr; padding:12px; gap:12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar" aria-label="Sidebar navigation">
+      <div class="brand" title="Company">X</div>
+      <nav class="nav-icons" aria-label="Primary">
+        <div class="nav-item active" title="Requests" data-section="requests" tabindex="0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        </div>
+        <div class="nav-item" title="Analytics" data-section="analytics" tabindex="0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" /><path d="M9 14V7M15 14v-4" /></svg>
+        </div>
+        <div class="nav-item" title="Settings" data-section="settings" tabindex="0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06A2 2 0 1 1 2.3 16.88l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82L4.3 3.7A2 2 0 1 1 7.12.87l.06.06a1.65 1.65 0 0 0 1.82.33h.09A1.65 1.65 0 0 0 11 1.75V1a2 2 0 1 1 4 0v.75c.2.1.39.24.56.41.17.17.31.35.41.56h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06A2 2 0 1 1 22 7.88l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.1.2.24.39.41.56.17.17.35.31.56.41h.75a2 2 0 1 1 0 4h-.75c-.2.1-.39.24-.56.41-.17.17-.31.35-.41.56z"/></svg>
+        </div>
+      </nav>
+
+      <!-- Profile Circle -->
+      <div class="profile-container">
+        <div class="profile-circle" id="profileCircle" title="Account"></div>
+
+        <div class="profile-menu" id="profileMenu">
+          <div class="profile-name" id="profileName">User</div>
+          <hr>
+          <button id="logoutBtn">Logout</button>
+        </div>
+      </div>
+
+      <div style="flex:1"></div>
+      <div style="text-align:center; font-size:12px; color:var(--muted); padding:10px 6px;">v1.0</div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main" role="main">
+      <div class="topbar" aria-label="top controls">
+        <div class="search" title="Search requests">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="opacity:0.6"><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <input id="globalSearch" placeholder="Filter table" aria-label="Filter table" />
+        </div>
+
+        <button id="addRequestBtn" class="btn btn-green" title="Add Request">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Add Request
+        </button>
+
+        <button id="openCompletedToggle" class="btn btn-outline" title="Toggle Open/Completed">Show: <strong id="currentViewText">Open</strong></button>
+      </div>
+
+      <section class="content" aria-label="Requests content">
+        <div class="controls" role="toolbar" aria-label="Filters">
+          <button class="pill active" data-filter="all">All Requests</button>
+          <button class="pill" data-filter="assigned">Assigned to Me</button>
+          <button class="pill" data-filter="created">Created By Me</button>
+          <div style="flex:1"></div>
+          <div class="muted" id="countInfo">Showing <strong id="rowCount">0</strong> requests</div>
+        </div>
+
+        <div style="overflow:auto;">
+          <table id="requestsTable" aria-label="Requests table">
+            <thead>
+              <tr>
+                <th style="width:80px">ID</th>
+                <th style="width:160px">Requester</th>
+                <th>Subject</th>
+                <th style="width:110px">Status</th>
+                <th style="width:110px">Impact</th>
+                <th style="width:160px">Next Target</th>
+                <th style="width:120px">Team</th>
+                <th style="width:140px">Member</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal root -->
+  <div id="modalRoot" style="display:none"></div>
+
+  <!-- Mini Chatbot -->
+  <div class="chat-bubble" aria-hidden="false">
+    <div id="chatWindow" class="chat-window" style="display:none" role="dialog" aria-label="Mini chatbot">
+      <div class="chat-header">MiniBot</div>
+      <div id="chatMessages" class="chat-messages" role="log" aria-live="polite"></div>
+      <div class="chat-input">
+        <input id="chatInput" placeholder="Say something..." />
+        <button id="sendChat" class="btn btn-green">Send</button>
+      </div>
+    </div>
+
+    <div id="chatToggle" class="chat-toggle" role="button" aria-label="Open chat">💬</div>
+  </div>
+<script>
+    /* =======================================================
+      CLEAN, ROBUST SCRIPT (replace your old script with this)
+      ======================================================= */
+
+    const N8N_WEBHOOK = "http://localhost:5678/webhook/274d4c93-a8b7-4a60-acd7-0302073e3bf3";
+
+    /* Utility: safe get element */
+    function $id(id) {
+      return document.getElementById(id);
+    }
+
+    /* Session handler */
+    function getOrCreateSessionId() {
+      let sid = localStorage.getItem("chatSessionId");
+      if (!sid) {
+        sid = "session_" + Math.random().toString(36).substring(2);
+        localStorage.setItem("chatSessionId", sid);
+      }
+      return sid;
+    }
+
+    /* Escape HTML helper */
+    function escapeHtml(s) {
+      return String(s || "").replace(/[&<>"'`=\/]/g, function (c) {
+        return {
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+          "/": "&#x2F;",
+          "`": "&#x60;",
+          "=": "&#61;"
+        }[c];
+      });
+    }
+
+    /* -------------------------------------------------------
+      Run everything after DOM loaded so elements exist
+      ------------------------------------------------------- */
+    document.addEventListener('DOMContentLoaded', () => {
+
+      /* ---------- DOM refs (safe) ---------- */
+      const tableBody = document.querySelector('#requestsTable tbody');
+      const rowCount = $id('rowCount');
+      const searchInput = $id('globalSearch');
+      const addBtn = $id('addRequestBtn');
+      const modalRoot = $id('modalRoot');
+      const openCompletedToggle = $id('openCompletedToggle');
+      const currentViewText = $id('currentViewText');
+
+      const chatToggle = $id('chatToggle');
+      const chatWindow = $id('chatWindow');
+      const chatMessages = $id('chatMessages');
+      const chatInput = $id('chatInput');
+      const sendChat = $id('sendChat');
+
+      const profileContainer = $id('profileContainer');
+      const profileCircle = $id('profileCircle');
+      const profileMenu = $id('profileMenu');
+      const profileNameEl = $id('profileName');
+      const logoutBtn = $id('logoutBtn');
+
+      /* If core elements are missing, bail gracefully with console warning */
+      if (!chatMessages) console.warn("chatMessages element not found");
+      if (!tableBody) console.warn("requestsTable tbody not found");
+
+      /* ---------- dummy data ---------- */
+      let data = [
+        {id: '66001', requester: 'Alice M.', subject: 'VPN access', status: 'Open', impact: 'High', nextTargetPct: 25, team: 'IT', member: 'John D.'},
+        {id: '66002', requester: 'Support Bot', subject: 'Password reset', status: 'Completed', impact: 'Low', nextTargetPct: 100, team: 'Support', member: 'N/A'},
+        {id: '66003', requester: 'Michael S.', subject: 'New laptop request', status: 'Open', impact: 'Medium', nextTargetPct: 60, team: 'IT', member: 'Laura P.'},
+        {id: '66004', requester: 'Finance', subject: 'Expense sheet error', status: 'Open', impact: 'Medium', nextTargetPct: 10, team: 'Finance', member: 'Emeka A.'}
+      ];
+
+      /* ---------- table rendering ---------- */
+      let showCompleted = false;
+
+      function renderImpactBadge(val) {
+        const v = String(val || '').toLowerCase();
+        if (v === 'low') return `<span class="impact low">Low</span>`;
+        if (v === 'medium') return `<span class="impact medium">Medium</span>`;
+        return `<span class="impact high">${escapeHtml(val || 'High')}</span>`;
+      }
+
+      function renderProgressPill(pct = 0) {
+        const safe = Math.max(0, Math.min(100, Number(pct) || 0));
+        const fillStyle = `width:${safe}%;`;
+        return `
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="progress-pill">
+              <div class="progress-fill" style="${fillStyle}"></div>
+            </div>
+            <div style="min-width:40px; text-align:right; font-size:13px; color:var(--muted)">${safe}%</div>
+          </div>`;
+      }
+
+      function renderTable() {
+        if (!tableBody) return;
+        const q = (searchInput?.value || '').trim().toLowerCase();
+        tableBody.innerHTML = '';
+        let visible = 0;
+        data.forEach(row => {
+          if (!showCompleted && String(row.status || '').toLowerCase() === 'completed') return;
+          const hay = (row.id + ' ' + row.requester + ' ' + row.subject + ' ' + row.status + ' ' + row.team + ' ' + row.member + ' ' + row.impact).toLowerCase();
+          if (q && !hay.includes(q)) return;
+          visible++;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${escapeHtml(row.id)}</td>
+            <td>${escapeHtml(row.requester)}</td>
+            <td title="${escapeHtml(row.subject)}">${escapeHtml(row.subject)}</td>
+            <td><span class="status">${escapeHtml(row.status)}</span></td>
+            <td>${renderImpactBadge(row.impact)}</td>
+            <td>${renderProgressPill(row.nextTargetPct)}</td>
+            <td class="muted">${escapeHtml(row.team)}</td>
+            <td class="muted">${escapeHtml(row.member)}</td>`;
+          tableBody.appendChild(tr);
+        });
+        if (rowCount) rowCount.textContent = visible;
+      }
+
+      renderTable();
+      if (searchInput) searchInput.addEventListener('input', () => setTimeout(renderTable, 200));
+      if (openCompletedToggle) openCompletedToggle.addEventListener('click', () => {
+        showCompleted = !showCompleted;
+        if (currentViewText) currentViewText.textContent = showCompleted ? 'All (including Completed)' : 'Open';
+        renderTable();
+      });
+
+      /* ---------- chat UI helpers ---------- */
+      function addChatMessage(text, who = 'bot', html = false) {
+        if (!chatMessages) return null;
+        const div = document.createElement('div');
+        div.className = 'message ' + (who === 'user' ? 'user' : 'bot');
+        if (html) div.innerHTML = text;
+        else div.textContent = text;
+        chatMessages.appendChild(div);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        return div;
+      }
+
+       /* ---------- sendToN8n (fixed to sync with login localStorage) ---------- */
+    async function sendToN8n(message) {
+      const typingBlock = addChatMessage("...", "bot");
+
+      try {
+        const sessionId = getOrCreateSessionId();
+
+        // ✅ Pull the correct user info from localStorage (not from table data)
+        const firstName = localStorage.getItem("userFirstName") || "";
+        const lastName = localStorage.getItem("userLastName") || "";
+        const department = localStorage.getItem("userDepartment") || "Unknown Department";
+        const uniqueId = localStorage.getItem("userId") || null;
+        const email = localStorage.getItem("userEmail") || null; // optional, only if you stored this
+
+        const fullName = `${firstName} ${lastName}`.trim() || "Unknown User";
+
+        // Build the payload n8n receives
+        const payload = {
+          question: typeof message === "string" ? message : (message.message || message),
+          sessionId: sessionId || null,
+          user: fullName,
+          department,
+          uniqueId,
+          email,
+          timestamp: new Date().toISOString()
+        };
+
+        // Send request to n8n webhook
+        const res = await fetch(N8N_WEBHOOK, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json().catch(() => null);
+        if (typingBlock) typingBlock.remove();
+
+        if (!data) {
+          addChatMessage("No response or invalid JSON from n8n.", "bot");
+          return;
+        }
+
+        // Save updated session ID if n8n returns one
+        if (data.sessionId) {
+          localStorage.setItem("chatSessionId", data.sessionId);
+        }
+
+        // Display bot reply
+        const reply = data.answer || data.message || "Sorry, I couldn't get an answer.";
+        addChatMessage(reply.replace(/\n/g, "<br>"), "bot", true);
+
+      } catch (err) {
+        if (typingBlock) typingBlock.remove();
+        addChatMessage("Sorry, there was an error contacting the server.", "bot");
+        console.error("sendToN8n error:", err);
+      }
+    }
+
+     
+      /* ---------- chat event wiring ---------- */
+      if (chatToggle) {
+        let chatOpen = false;
+        chatToggle.addEventListener('click', () => {
+          chatOpen = !chatOpen;
+          if (chatWindow) chatWindow.style.display = chatOpen ? 'flex' : 'none';
+          if (chatOpen && chatInput) chatInput.focus();
+        });
+      }
+
+      if (sendChat && chatInput) {
+        sendChat.addEventListener('click', async () => {
+          const text = chatInput.value.trim();
+          if (!text) return;
+          addChatMessage(text, 'user');
+          chatInput.value = '';
+          await sendToN8n(text);
+        });
+        chatInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') sendChat.click();
+        });
+      }
+
+      /* ---------- greeting / open notify ---------- */
+      function renderChatGreeting() {
+        addChatMessage("Hi — how can I help? (connected to n8n)", "bot");
+        // notify n8n if available (best-effort)
+        fetch(N8N_WEBHOOK, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event: "chat_opened" })
+        }).catch(()=>{});
+      }
+      renderChatGreeting();
+
+      /* ---------- modal / add request button (safe) ---------- */
+      if (addBtn) {
+        addBtn.addEventListener('click', () => showModal());
+      }
+
+      function showModal(){
+        if (!modalRoot) return;
+        modalRoot.style.display = 'block';
+        modalRoot.innerHTML = `
+          <div class="modal-backdrop" role="dialog" aria-modal="true">
+            <div class="modal" role="document">
+              <h3>Create Request</h3>
+              <div class="field"><input id="m_requester" placeholder="Requester (Full name)"/></div>
+              <div class="field"><input id="m_subject" placeholder="Subject"/></div>
+              <div class="row">
+                <div class="col field"><select id="m_team"><option>IT</option><option>Support</option><option>Finance</option><option>Ops</option></select></div>
+                <div class="col field"><input id="m_member" placeholder="Member (assignee)" /></div>
+              </div>
+              <div class="row">
+                <div class="col field">
+                  <label>Impact Level</label>
+                  <select id="m_impact"><option>High</option><option>Medium</option><option>Low</option></select>
+                </div>
+                <div class="col field">
+                  <label>Next Target %</label>
+                  <input id="m_nextPercent" type="range" min="0" max="100" value="25" />
+                  <div style="font-size:13px; color:var(--muted); margin-top:4px;">Value: <span id="m_nextPercent_val">25</span>%</div>
+                </div>
+              </div>
+              <div class="modal-actions">
+                <button id="m_cancel" class="btn btn-outline">Cancel</button>
+                <button id="m_create" class="btn btn-green">Create</button>
+              </div>
+            </div>
+          </div>
+        `;
+        const percent = $id('m_nextPercent');
+        if (percent) {
+          percent.addEventListener('input', (e) => {
+            const v = e.target.value;
+            const target = $id('m_nextPercent_val');
+            if (target) target.textContent = v;
+          });
+        }
+        const cancel = $id('m_cancel');
+        if (cancel) cancel.addEventListener('click', closeModal);
+        const create = $id('m_create');
+        if (create) create.addEventListener('click', async () => {
+          const requester = ($id('m_requester')?.value || 'Anonymous').trim();
+          const subject = ($id('m_subject')?.value || '(no subject)').trim();
+          const team = $id('m_team')?.value || 'Ops';
+          const member = ($id('m_member')?.value || 'Unassigned').trim();
+          const impact = $id('m_impact')?.value || 'Medium';
+          const nextTargetPct = Number($id('m_nextPercent')?.value || 0);
+
+          const maxId = data.reduce((m, r) => Math.max(m, Number(r.id) || 0), 66000);
+          const newId = String(maxId + 1);
+          const newRow = { id: newId, requester, subject, status: 'Open', impact, nextTargetPct, team, member };
+
+          // Add locally and re-render
+          data.unshift(newRow);
+          renderTable();
+
+          // Notify n8n (best effort)
+          try {
+            await fetch(N8N_WEBHOOK, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'create_request', payload: newRow })
+            });
+          } catch (err) {
+            console.warn('Failed to notify n8n (create_request):', err);
+          }
+
+          closeModal();
+        });
+      }
+
+      function closeModal(){
+        if (!modalRoot) return;
+        modalRoot.style.display = 'none';
+        modalRoot.innerHTML = '';
+      }
+
+      /* ---------- PROFILE DROPDOWN population + behavior ---------- */
+      // Populate profile display (if elements exist)
+      try {
+        const firstName = localStorage.getItem('userFirstName') || '';
+        const lastName = localStorage.getItem('userLastName') || '';
+        const department = localStorage.getItem('userDepartment') || '';
+        const userId = localStorage.getItem('userId') || '';
+        const userEmail = localStorage.getItem('userEmail') || '';
+
+        if (profileCircle) {
+          const initials = ((firstName.charAt(0) || '') + (lastName.charAt(0) || '')).toUpperCase() || 'U';
+          profileCircle.textContent = initials;
+        }
+
+        if (profileNameEl) {
+          profileNameEl.innerHTML = `
+            <div style="text-align:center;">
+              <strong>${escapeHtml(firstName)} ${escapeHtml(lastName)}</strong><br>
+              <small>${escapeHtml(userEmail)}</small><br>
+              <small>${escapeHtml(department)}</small><br>
+              <small>ID: ${escapeHtml(userId)}</small>
+            </div>
+          `;
+        }
+
+        // toggle handler
+        if (profileCircle && profileMenu) {
+          profileCircle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const showing = profileMenu.style.display === 'flex';
+            profileMenu.style.display = showing ? 'none' : 'flex';
+          });
+
+          // click outside to close
+          document.addEventListener('click', (e) => {
+            if (!profileContainer) return;
+            if (!profileContainer.contains(e.target)) {
+              profileMenu.style.display = 'none';
+            }
+          });
+        }
+
+        // logout
+        if (logoutBtn) {
+          logoutBtn.addEventListener('click', () => {
+            localStorage.clear();
+            window.location.href = 'login.html';
+          });
+        }
+      } catch (err) {
+        console.error('Profile menu init error:', err);
+      }
+
+    }); // end DOMContentLoaded
+</script>
+
+
+</body>
+</html>
